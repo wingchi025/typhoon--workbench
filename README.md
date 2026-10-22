@@ -67,7 +67,7 @@
 2. 進入倉庫的 **Settings** $\to$ **Pages**。
 3. 在 **Build and deployment** $\to$ **Branch** 選擇 `main` 分支與 `/(root)` 目錄，點擊 **Save**。
 4. 等待 1 分鐘，即可獲得全球即時可訪問的線上演示網址：
-   `https://<你的GitHub帳號>.github.io/<專案名稱>/`
+   `https://wingchi025.github.io/typhoon--workbench/`
 
 ---
 
