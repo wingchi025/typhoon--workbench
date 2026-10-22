@@ -1471,6 +1471,95 @@
     </div>
   </div>
 
+  <!-- 螢幕快門閃光特效 (Camera Flash) -->
+  <div id="cameraFlash" style="position: fixed; inset: 0; background: #ffffff; opacity: 0; pointer-events: none; z-index: 9999; transition: opacity 0.25s ease;"></div>
+
+  <!-- ==========================================================================
+       截圖與動力學深度分析報表 Modal (Snapshot & Diagnostics Dialog)
+       ========================================================================== -->
+  <div class="modal-overlay" id="snapshotModal" role="dialog" aria-modal="true" aria-labelledby="snapshotModalTitle">
+    <div class="modal-dialog" style="max-width: 960px;">
+      <div class="modal-header">
+        <h3 id="snapshotModalTitle" style="color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          氣象觀測快照與動力學分析簡報 (Meteorological Snapshot & Diagnostics)
+        </h3>
+        <button class="modal-close-btn" id="snapshotModalCloseBtn" aria-label="關閉快照">&times;</button>
+      </div>
+
+      <!-- 快照圖片展示與分析佈局 -->
+      <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 4px;">
+        <!-- 左側：真實生成的 Canvas 截圖預覽 -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="background: #040812; border: 1px solid var(--accent-cyan); border-radius: 8px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.7); position: relative;">
+            <img id="snapshotImgPreview" alt="氣象即時截圖" style="width: 100%; height: auto; display: block;">
+            <div style="position: absolute; bottom: 8px; right: 10px; font-size: 0.65rem; color: rgba(255,255,255,0.7); font-family: var(--font-mono); background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;">
+              HD 1320x1080 RENDERED
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <a id="snapshotDownloadBtn" class="btn-icon-action" style="flex: 1; text-decoration: none; justify-content: center; background: linear-gradient(135deg, rgba(0, 229, 255, 0.25) 0%, rgba(0, 136, 255, 0.15) 100%); border-color: var(--accent-cyan); color: #fff; font-weight: 600;">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>下載高畫質 PNG 截圖</span>
+            </a>
+            <button id="snapshotCopyBtn" class="btn-icon-action" style="justify-content: center;">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>複製截圖</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 右側：大氣物理分析報告卡 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
+            <h4 style="font-size: 0.82rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+              當前氣象遙測觀測值
+            </h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem; font-family: var(--font-mono);">
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">觀測進程:</span>
+                <div id="snapTimeText" style="color: #fff; font-weight: 700;">T+24.0h</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">中心氣壓:</span>
+                <div id="snapPressureText" style="color: var(--accent-cyan); font-weight: 700;">940 hPa</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">近中心陣風:</span>
+                <div id="snapWindText" style="color: var(--accent-red); font-weight: 700;">50 m/s</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">迎風時雨量:</span>
+                <div id="snapRainText" style="color: var(--accent-cyan); font-weight: 700;">130 mm/h</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">背風焚風:</span>
+                <div id="snapTempText" style="color: var(--accent-amber); font-weight: 700;">38.2 ℃</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+                <span style="color: var(--text-muted); font-size: 0.68rem;">山脈破壞度:</span>
+                <div id="snapDisruptText" style="color: var(--accent-green); font-weight: 700;">85%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 專業大氣動力學診斷簡評 -->
+          <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; padding: 14px; font-size: 0.75rem; line-height: 1.5; flex: 1;">
+            <strong style="color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              專業大氣動力學診斷報告：
+            </strong>
+            <p id="snapDiagnosticText" style="margin-top: 6px; color: #d0e4ff;"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==========================================================================
        10. 原生 Web Audio API 與應用程式互動邏輯 (All-in-One JavaScript)
        ========================================================================== -->
@@ -1841,16 +1930,184 @@
       }
     });
 
-    // 截圖分析按鈕 (觸發 Stroke Dashoffset 勾勒動畫與音效)
+    // 截圖分析按鈕 (真實在線繪製高畫質 Canvas 截圖與動力學分析生成)
     dom.snapshotBtn.addEventListener('click', () => {
+      // 1. 播放成功和弦微音效與按鈕描邊動畫
       audio.playSuccessChord();
       dom.snapshotBtn.classList.remove('draw-active');
-      void dom.snapshotBtn.offsetWidth; // 強制重繪觸發 CSS 動畫
+      void dom.snapshotBtn.offsetWidth;
       dom.snapshotBtn.classList.add('draw-active');
 
-      setTimeout(() => {
-        alert("📷 氣象觀測視界已快照存檔！當前中心氣壓：" + dom.telePressure.textContent + " hPa，已生成輕量化向量分析報表。");
-      }, 500);
+      // 2. 快門閃光特效 (Screen Flash)
+      const flash = document.getElementById('cameraFlash');
+      if (flash) {
+        flash.style.opacity = '0.7';
+        setTimeout(() => { flash.style.opacity = '0'; }, 100);
+      }
+
+      // 3. 計算當前座標與狀態
+      const tProgress = state.currentTime / 48.0;
+      const track = trackCurves[state.activeTrack];
+      const pos = getBezierPoint(tProgress, track.p0, track.p1, track.p2);
+
+      // 4. 建立 2x 高解析度 Canvas (1320 x 1080)
+      const canvas = document.createElement('canvas');
+      canvas.width = 1320;
+      canvas.height = 1080;
+      const ctx = canvas.getContext('2d');
+
+      // 繪製背景星空深色漸層
+      const bgGrad = ctx.createRadialGradient(660, 540, 50, 660, 540, 750);
+      bgGrad.addColorStop(0, '#0e1e36');
+      bgGrad.addColorStop(1, '#050a14');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1320, 1080);
+
+      // 5. 克隆 SVG 地理畫布並注入當前颱風氣旋實體
+      const oceanSvg = document.getElementById('oceanSvg');
+      const clonedSvg = oceanSvg.cloneNode(true);
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clonedSvg.setAttribute('width', '1320');
+      clonedSvg.setAttribute('height', '1080');
+      clonedSvg.setAttribute('viewBox', '0 0 660 540');
+
+      // 注入颱風氣旋與眼牆
+      const typhoonVortexSvg = document.querySelector('.typhoon-vortex-svg');
+      if (typhoonVortexSvg) {
+        const typhoonG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        typhoonG.setAttribute('transform', `translate(${pos.x - 140}, ${pos.y - 140})`);
+        typhoonG.innerHTML = typhoonVortexSvg.innerHTML;
+        clonedSvg.appendChild(typhoonG);
+      }
+
+      // 序列化為 SVG 圖片
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(clonedSvg);
+      const img = new Image();
+
+      img.onload = () => {
+        // 繪入 SVG 地圖與颱風
+        ctx.drawImage(img, 0, 0, 1320, 1080);
+
+        // 6. 繪製 HUD 專業遙測邊框與數據水印
+        // 頂部標題 Bar
+        ctx.fillStyle = 'rgba(7, 12, 22, 0.88)';
+        ctx.fillRect(30, 24, 1260, 68);
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(30, 24, 1260, 68);
+
+        ctx.fillStyle = '#00e5ff';
+        ctx.font = 'bold 22px monospace';
+        ctx.fillText('TYPHOON VORTEX OBSERVATION SNAPSHOT // 氣象觀測快照分析', 52, 66);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px monospace';
+        ctx.fillText(`TIME: T+${state.currentTime.toFixed(1)}h | ${dom.stageText.textContent}`, 750, 66);
+
+        // 颱風眼中心瞄準十字標 (Crosshair)
+        const cx = (pos.x / 660) * 1320;
+        const cy = (pos.y / 540) * 1080;
+        ctx.strokeStyle = 'rgba(255, 51, 102, 0.75)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 4]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 55, 0, Math.PI * 2);
+        ctx.moveTo(cx - 75, cy);
+        ctx.lineTo(cx + 75, cy);
+        ctx.moveTo(cx, cy - 75);
+        ctx.lineTo(cx, cy + 75);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 左下角遙測數據 HUD 盒
+        ctx.fillStyle = 'rgba(7, 12, 24, 0.9)';
+        ctx.fillRect(40, 880, 520, 160);
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(40, 880, 520, 160);
+
+        ctx.fillStyle = '#00e5ff';
+        ctx.font = 'bold 15px monospace';
+        ctx.fillText('METEOROLOGICAL TELEMETRY // 即時遙測數據', 60, 912);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText(`中心氣壓 (Central Pressure):  ${dom.telePressure.textContent} hPa`, 60, 942);
+        ctx.fillText(`最大陣風 (Max Wind Gust):   ${dom.teleWind.textContent} m/s`, 60, 968);
+        ctx.fillText(`迎風時雨 (Windward Rain):   ${dom.teleRain.textContent} mm/h`, 60, 994);
+        ctx.fillText(`背風焚風 (Leeward Foehn):   ${dom.teleTemp.textContent} ℃`, 60, 1020);
+
+        // 右下角引擎認證浮水印
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '13px monospace';
+        ctx.fillText('TAIWAN 3D VORTEX LAB | 60 FPS ENGINE | VERIFIED', 910, 1030);
+
+        // 7. 匯出 PNG 並填入 Snapshot Modal
+        const pngUrl = canvas.toDataURL('image/png');
+        const snapPreview = document.getElementById('snapshotImgPreview');
+        const snapDownload = document.getElementById('snapshotDownloadBtn');
+        const snapModal = document.getElementById('snapshotModal');
+
+        snapPreview.src = pngUrl;
+        snapDownload.href = pngUrl;
+        snapDownload.download = `typhoon_snapshot_T+${state.currentTime.toFixed(1)}h.png`;
+
+        // 填入即時診斷數據
+        document.getElementById('snapTimeText').textContent = `T+${state.currentTime.toFixed(1)}h`;
+        document.getElementById('snapPressureText').textContent = `${dom.telePressure.textContent} hPa`;
+        document.getElementById('snapWindText').textContent = `${dom.teleWind.textContent} m/s`;
+        document.getElementById('snapRainText').textContent = `${dom.teleRain.textContent} mm/h`;
+        document.getElementById('snapTempText').textContent = `${dom.teleTemp.textContent} ℃`;
+        document.getElementById('snapDisruptText').textContent = dom.disruptionIndex.textContent;
+
+        // 生成智能診斷評估
+        let diagnostic = "";
+        if (tProgress < 0.3) {
+          diagnostic = "【登陸前外圍沉降階段】颱風逆時針外圍環流逼近花東外海，迎風面水氣受地形初抬升產生間歇強陣雨；西半部受高壓外圍下沉氣流控制，天氣晴朗穩定，海面需提防長浪湧至。";
+        } else if (tProgress >= 0.3 && tProgress <= 0.65) {
+          diagnostic = "【中央山脈翻越與重組階段】強烈東南風撞擊中央山脈東坡，迎風面急遽輻合抬升激發極端地形豪雨；底層氣旋受山脈強烈摩擦切割，中心氣壓顯著填塞上升，環流碎裂並在背風面（台東/新竹）形成強烈下沉乾絕熱增溫焚風，氣溫飆破警戒值！";
+        } else {
+          diagnostic = "【出海減弱與西南氣流威脅】颱風翻越中央山脈後結構已大受削弱，中心進入台灣海峽向西北西移動；但颱風南側可能導引強烈西南氣流北上，中南部山區仍須嚴防致災性連續降雨。";
+        }
+        document.getElementById('snapDiagnosticText').textContent = diagnostic;
+
+        // 開啟 Modal 顯示截圖
+        snapModal.classList.add('open');
+      };
+
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+    });
+
+    // 關閉快照 Modal
+    document.getElementById('snapshotModalCloseBtn').addEventListener('click', () => {
+      audio.playClick();
+      document.getElementById('snapshotModal').classList.remove('open');
+    });
+
+    document.getElementById('snapshotModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('snapshotModal')) {
+        audio.playClick();
+        document.getElementById('snapshotModal').classList.remove('open');
+      }
+    });
+
+    // 複製截圖至剪貼簿
+    document.getElementById('snapshotCopyBtn').addEventListener('click', () => {
+      audio.playClick();
+      const snapImg = document.getElementById('snapshotImgPreview');
+      if (!snapImg || !snapImg.src) return;
+      fetch(snapImg.src)
+        .then(res => res.blob())
+        .then(blob => {
+          if (navigator.clipboard && window.ClipboardItem) {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+              .then(() => alert("✔ 快照已成功複製至剪貼簿！可直接在簡報或對話框貼上 (Ctrl+V)"))
+              .catch(() => alert("瀏覽器安全限制複製，請直接點擊「下載高畫質 PNG 截圖」按鈕保存。"));
+          } else {
+            alert("請直接點擊「下載高畫質 PNG 截圖」按鈕保存！");
+          }
+        });
     });
 
     // 收藏星標按鈕 (彈跳微互動)
