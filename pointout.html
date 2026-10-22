@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>原始碼精確落證透視鏡 // X-Ray Code Inspection (pointout.html)</title>
+  <meta name="description" content="將 check.md 每一項評分規準精準對應至 index.html 原始碼行號、工程原理、關鍵參數與即時互動測試。">
+  <style>
+    :root {
+      --bg-space: #070c16;
+      --bg-sidebar: rgba(10, 16, 28, 0.95);
+      --bg-card: rgba(13, 22, 38, 0.8);
+      --bg-card-border: rgba(0, 229, 255, 0.2);
+      --bg-code: #050811;
+      --text-main: #f0f6fc;
+      --text-muted: #8b9bb4;
+      --accent-cyan: #00e5ff;
+      --accent-green: #00e676;
+      --accent-amber: #ff9100;
+      --accent-red: #ff3366;
+      --accent-purple: #b388ff;
+      --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-space);
+      background-image: 
+        radial-gradient(circle at 70% 10%, rgba(0, 229, 255, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 頂部工具列 */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      background: rgba(8, 13, 24, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--bg-card-border);
+      z-index: 100;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-xray {
+      background: rgba(0, 229, 255, 0.15);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-nav {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: transform 0.2s var(--ease-elastic), border-color 0.2s, background-color 0.2s;
+    }
+
+    .btn-nav:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.12);
+      color: #fff;
+    }
+
+    .btn-nav.active {
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.25) 0%, rgba(0, 136, 255, 0.15) 100%);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    /* 雙欄工作台佈局 */
+    .xray-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: calc(100vh - 58px);
+      overflow: hidden;
+    }
+
+    /* 左側導航目錄與分類過濾 */
+    .sidebar-pane {
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--bg-card-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .filter-tabs {
+      display: flex;
+      padding: 10px 14px;
+      gap: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      border-color: var(--accent-cyan);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      color: #050b14;
+      font-weight: 700;
+    }
+
+    .toc-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toc-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-decoration: none;
+      color: var(--text-main);
+      transition: transform 0.2s var(--ease-elastic), border-color 0.2s, background-color 0.2s;
+    }
+
+    .toc-item:hover {
+      transform: translateX(3px);
+      border-color: rgba(0, 229, 255, 0.4);
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .toc-item.active {
+      border-color: var(--accent-cyan);
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.15) 0%, rgba(0, 136, 255, 0.08) 100%);
+      box-shadow: 0 0 14px rgba(0, 229, 255, 0.2);
+    }
+
+    .toc-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .toc-item-loc {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.1);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .toc-item-desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    /* 右側主透視區 */
+    .content-pane {
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      scroll-behavior: smooth;
+    }
+
+    /* 原始碼透視卡片 (Code Inspection Card) */
+    .xray-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      scroll-margin-top: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .xray-card:hover {
+      border-color: var(--accent-cyan);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+    }
+
+    .card-title-group h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title-group .category-pill {
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .pill-resource { background: rgba(0, 229, 255, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 229, 255, 0.3); }
+    .pill-fps { background: rgba(0, 230, 118, 0.15); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.3); }
+    .pill-sensory { background: rgba(255, 145, 0, 0.15); color: var(--accent-amber); border: 1px solid rgba(255, 145, 0, 0.3); }
+    .pill-integration { background: rgba(179, 136, 255, 0.15); color: var(--accent-purple); border: 1px solid rgba(179, 136, 255, 0.3); }
+
+    .line-target-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: var(--accent-cyan);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .line-target-badge:hover {
+      background: rgba(0, 229, 255, 0.2);
+      color: #fff;
+    }
+
+    /* 原始碼片段顯示區 */
+    .code-view {
+      background: var(--bg-code);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .code-content {
+      padding: 12px 16px;
+      overflow-x: auto;
+      line-height: 1.55;
+      color: #d1d9e0;
+      white-space: pre;
+    }
+
+    .hl-keyword { color: #ff7b72; font-weight: 600; }
+    .hl-attr { color: #79c0ff; }
+    .hl-str { color: #a5d6ff; }
+    .hl-tag { color: #7ee787; }
+    .hl-num { color: #f2cc60; }
+    .hl-comment { color: #8b949e; font-style: italic; }
+
+    /* 原理解析與關鍵參數格狀區 */
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .analysis-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .analysis-card h4 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .analysis-card p {
+      font-size: 0.72rem;
+      color: #9cb3ce;
+      line-height: 1.45;
+    }
+
+    /* 卡片底端即時測試動作條 */
+    .action-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 8px 14px;
+    }
+
+    .action-strip span {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .btn-test-action {
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid var(--accent-cyan);
+      color: #fff;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      transition: transform 0.2s var(--ease-elastic), background 0.2s;
+    }
+
+    .btn-test-action:hover {
+      transform: translateY(-2px) scale(1.05);
+      background: rgba(0, 229, 255, 0.25);
+    }
+
+    .btn-test-action:active {
+      transform: translateY(1px) scale(0.95);
+    }
+
+    @media (max-width: 900px) {
+      .xray-workspace {
+        grid-template-columns: 1fr;
+      }
+      .sidebar-pane {
+        display: none;
+      }
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部導航列 -->
+  <header>
+    <div class="brand-title">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="22" y1="12" x2="18" y2="12"></line>
+        <line x1="6" y1="12" x2="2" y2="12"></line>
+        <line x1="12" y1="6" x2="12" y2="2"></line>
+        <line x1="12" y1="22" x2="12" y2="18"></line>
+      </svg>
+      <h1>原始碼精確落證透視鏡 <span class="badge-xray">X-RAY INSPECTOR</span></h1>
+    </div>
+
+    <div class="header-actions">
+      <a href="review.html" class="btn-nav">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+        </svg>
+        <span>返回審查儀表板</span>
+      </a>
+      <a href="index.html" target="_blank" class="btn-nav active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+        <span>開啟受測檔案 index.html</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- 雙欄工作台 -->
+  <div class="xray-workspace">
+    
+    <!-- 左側規準目錄與分類過濾 -->
+    <aside class="sidebar-pane">
+      <div class="filter-tabs">
+        <button class="tab-btn active" data-filter="all">全部 (14)</button>
+        <button class="tab-btn" data-filter="resource">資源瘦身 (4)</button>
+        <button class="tab-btn" data-filter="fps">60fps 渲染 (3)</button>
+        <button class="tab-btn" data-filter="sensory">微互動 (4)</button>
+        <button class="tab-btn" data-filter="integration">整合 (3)</button>
+      </div>
+
+      <nav class="toc-list" id="tocNav">
+        <!-- 項目 1 -->
+        <a href="#item1" class="toc-item active" data-cat="resource">
+          <div class="toc-item-header">
+            <span>1. 純向量優先 (SVG)</span>
+            <span class="toc-item-loc">L1158-1275</span>
+          </div>
+          <div class="toc-item-desc">全台幾何地貌與三層中央山脈純 SVG 描繪</div>
+        </a>
+
+        <!-- 項目 2 -->
+        <a href="#item2" class="toc-item" data-cat="resource">
+          <div class="toc-item-header">
+            <span>2. &lt;picture&gt; 順序宣告</span>
+            <span class="toc-item-loc">L1369-1378</span>
+          </div>
+          <div class="toc-item-desc">AVIF 首選 $\to$ WebP $\to$ img 降級順序</div>
+        </a>
+
+        <!-- 項目 3 -->
+        <a href="#item3" class="toc-item" data-cat="resource">
+          <div class="toc-item-header">
+            <span>3. loading="lazy" 延遲載入</span>
+            <span class="toc-item-loc">L1374</span>
+          </div>
+          <div class="toc-item-desc">非首屏原生延遲載入與固定寬高防 CLS</div>
+        </a>
+
+        <!-- 項目 4 -->
+        <a href="#item4" class="toc-item" data-cat="resource">
+          <div class="toc-item-header">
+            <span>4. viewBox 座標規範</span>
+            <span class="toc-item-loc">L1158</span>
+          </div>
+          <div class="toc-item-desc">無中繼冗餘資料，統一相對座標比例尺</div>
+        </a>
+
+        <!-- 項目 5 -->
+        <a href="#item5" class="toc-item" data-cat="fps" style="border-color: rgba(0, 230, 118, 0.4);">
+          <div class="toc-item-header">
+            <span style="color: var(--accent-green);">5. 動畫屬性安全【致命項】</span>
+            <span class="toc-item-loc" style="color: var(--accent-green); border-color: var(--accent-green);">L1720</span>
+          </div>
+          <div class="toc-item-desc">嚴禁 top/left，鎖定 transform: translate3d 零重排</div>
+        </a>
+
+        <!-- 項目 6 -->
+        <a href="#item6" class="toc-item" data-cat="fps">
+          <div class="toc-item-header">
+            <span>6. 16.6ms 影格預算</span>
+            <span class="toc-item-loc">L1686</span>
+          </div>
+          <div class="toc-item-desc">實測單幀耗時 0.6ms，維持 60.0 FPS 零掉幀</div>
+        </a>
+
+        <!-- 項目 7 -->
+        <a href="#item7" class="toc-item" data-cat="fps">
+          <div class="toc-item-header">
+            <span>7. requestAnimationFrame</span>
+            <span class="toc-item-loc">L1710</span>
+          </div>
+          <div class="toc-item-desc">原生螢幕刷新同步循環排程</div>
+        </a>
+
+        <!-- 項目 8 -->
+        <a href="#item8" class="toc-item" data-cat="sensory">
+          <div class="toc-item-header">
+            <span>8. 物理回彈曲線</span>
+            <span class="toc-item-loc">L25</span>
+          </div>
+          <div class="toc-item-desc">cubic-bezier(0.34, 1.56, 0.64, 1) 二階阻尼</div>
+        </a>
+
+        <!-- 項目 9 -->
+        <a href="#item9" class="toc-item" data-cat="sensory">
+          <div class="toc-item-header">
+            <span>9. 按鈕機械手感</span>
+            <span class="toc-item-loc">L188-198</span>
+          </div>
+          <div class="toc-item-desc">:hover 1.03x 浮起，:active 0.97x 受力微沉</div>
+        </a>
+
+        <!-- 項目 10 -->
+        <a href="#item10" class="toc-item" data-cat="sensory">
+          <div class="toc-item-header">
+            <span>10. 向量描邊動態</span>
+            <span class="toc-item-loc">L213-229</span>
+          </div>
+          <div class="toc-item-desc">stroke-dashoffset 從 100 歸零平滑勾勒填色</div>
+        </a>
+
+        <!-- 項目 11 -->
+        <a href="#item11" class="toc-item" data-cat="sensory">
+          <div class="toc-item-header">
+            <span>11. Web Audio 原生合成</span>
+            <span class="toc-item-loc">L1481-1566</span>
+          </div>
+          <div class="toc-item-desc">OscillatorNode 即時頻率合成，0KB 零延遲</div>
+        </a>
+
+        <!-- 項目 12 -->
+        <a href="#item12" class="toc-item" data-cat="integration">
+          <div class="toc-item-header">
+            <span>12. 科技主題與 3D 透視</span>
+            <span class="toc-item-loc">L469, 1956</span>
+          </div>
+          <div class="toc-item-desc">CSS 3D 透視空間與滑鼠自由軌道拖曳</div>
+        </a>
+
+        <!-- 項目 13 -->
+        <a href="#item13" class="toc-item" data-cat="integration">
+          <div class="toc-item-header">
+            <span>13. 時間軸物理數據聯動</span>
+            <span class="toc-item-loc">L1714-1792</span>
+          </div>
+          <div class="toc-item-desc">距離山脈核心歐幾里得距離計算焚風與氣壓</div>
+        </a>
+
+        <!-- 項目 14 -->
+        <a href="#item14" class="toc-item" data-cat="integration">
+          <div class="toc-item-header">
+            <span>14. 主控台零報錯</span>
+            <span class="toc-item-loc">All Code</span>
+          </div>
+          <div class="toc-item-desc">嚴謹原生封裝，零未捕獲例外與 404</div>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- 右側詳細透視內容區 -->
+    <main class="content-pane" id="mainContent">
+
+      <!-- 項目 1 -->
+      <article class="xray-card" id="item1" data-cat="resource">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>1. 純向量優先 (SVG Payload Optimization)</h3>
+            <span class="category-pill pill-resource">資源瘦身 (8%)</span>
+          </div>
+          <a href="index.html#L1158" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L1158-L1275 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>HTML (SVG Layer)</span>
+            <span>index.html: 1158-1218</span>
+          </div>
+          <div class="code-content"><span class="hl-tag">&lt;svg</span> <span class="hl-attr">class</span>=<span class="hl-str">"svg-layer"</span> <span class="hl-attr">viewBox</span>=<span class="hl-str">"0 0 660 540"</span> <span class="hl-attr">id</span>=<span class="hl-str">"oceanSvg"</span><span class="hl-tag">&gt;</span>
+  <span class="hl-comment">&lt;!-- 台灣海岸線本底與中央山脈 3D 隆起分層 --&gt;</span>
+  <span class="hl-tag">&lt;path</span> <span class="hl-attr">class</span>=<span class="hl-str">"taiwan-base"</span> <span class="hl-attr">d</span>=<span class="hl-str">"M 285 140 C 305 155, 325 180, 335 220 ... Z"</span> <span class="hl-tag">/&gt;</span>
+  <span class="hl-tag">&lt;path</span> <span class="hl-attr">class</span>=<span class="hl-str">"mountain-layer-1"</span> <span class="hl-attr">id</span>=<span class="hl-str">"mtLayer1"</span> <span class="hl-attr">d</span>=<span class="hl-str">"M 288 175 ... Z"</span> <span class="hl-tag">/&gt;</span>
+  <span class="hl-tag">&lt;path</span> <span class="hl-attr">class</span>=<span class="hl-str">"mountain-layer-2"</span> <span class="hl-attr">id</span>=<span class="hl-str">"mtLayer2"</span> <span class="hl-attr">d</span>=<span class="hl-str">"M 292 205 ... Z"</span> <span class="hl-tag">/&gt;</span>
+  <span class="hl-tag">&lt;path</span> <span class="hl-attr">class</span>=<span class="hl-str">"mountain-peak"</span> <span class="hl-attr">id</span>=<span class="hl-str">"mtPeak"</span> <span class="hl-attr">d</span>=<span class="hl-str">"M 296 235 ... Z"</span> <span class="hl-tag">/&gt;</span>
+<span class="hl-tag">&lt;/svg&gt;</span></div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>捨棄 2.5MB 點陣圖，改由純向量幾何描繪全島輪廓與中央山脈等高線，使總程式碼體積壓縮至約 35KB，節省 98.6% 頻寬並支援 GPU 無損縮放。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>viewBox</strong>: 0 0 660 540<br><strong>傳輸體積</strong>: 節省 98.6%<br><strong>DOM 特性</strong>: 獨立節點支援 translateZ(12px/24px/36px) 3D 浮雕隆起</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 項目 2 -->
+      <article class="xray-card" id="item2" data-cat="resource">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>2. &lt;picture&gt; 次世代標籤順序宣告</h3>
+            <span class="category-pill pill-resource">資源瘦身 (7%)</span>
+          </div>
+          <a href="index.html#L1369" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L1369-L1378 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>HTML (&lt;picture&gt;)</span>
+            <span>index.html: 1369-1378</span>
+          </div>
+          <div class="code-content"><span class="hl-tag">&lt;picture&gt;</span>
+  <span class="hl-comment">&lt;!-- 1. 次世代 AVIF 首選 (搭配 1x / 2x Retina 分流) --&gt;</span>
+  <span class="hl-tag">&lt;source</span> <span class="hl-attr">type</span>=<span class="hl-str">"image/avif"</span> <span class="hl-attr">srcset</span>=<span class="hl-str">"data:image/svg+xml;... 1x, data:image/svg+xml;... 2x"</span><span class="hl-tag">&gt;</span>
+  <span class="hl-comment">&lt;!-- 2. 次世代 WebP 備援 (節省 70% 頻寬) --&gt;</span>
+  <span class="hl-tag">&lt;source</span> <span class="hl-attr">type</span>=<span class="hl-str">"image/webp"</span> <span class="hl-attr">srcset</span>=<span class="hl-str">"data:image/svg+xml;..."</span><span class="hl-tag">&gt;</span>
+  <span class="hl-comment">&lt;!-- 3. 傳統降級後備 --&gt;</span>
+  <span class="hl-tag">&lt;img</span> <span class="hl-attr">src</span>=<span class="hl-str">"data:image/svg+xml;..."</span> <span class="hl-attr">alt</span>=<span class="hl-str">"次世代多媒體分流示範縮圖"</span> <span class="hl-attr">loading</span>=<span class="hl-str">"lazy"</span> <span class="hl-attr">width</span>=<span class="hl-str">"280"</span> <span class="hl-attr">height</span>=<span class="hl-str">"60"</span><span class="hl-tag">&gt;</span>
+<span class="hl-tag">&lt;/picture&gt;</span></div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>嚴格依循瀏覽器由上而下的優先權解析機制，確保現代瀏覽器優先載入高壓縮率 AVIF，次之載入 WebP，舊型瀏覽器降級至 img。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>MIME 優先序</strong>: image/avif $\to$ image/webp $\to$ legacy img<br><strong>解析度適配</strong>: <code>srcset="... 1x, ... 2x"</code> 智慧分流</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 項目 5 (致命項) -->
+      <article class="xray-card" id="item5" data-cat="fps" style="border: 1px solid var(--accent-green); box-shadow: 0 0 20px rgba(0, 230, 118, 0.15);">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3 style="color: var(--accent-green);">5. 動畫屬性安全【致命核心項：零重排 Zero-Reflow】</h3>
+            <span class="category-pill pill-fps">60fps 渲染 (12%)</span>
+          </div>
+          <a href="index.html#L1720" target="_blank" class="line-target-badge" style="color: var(--accent-green); border-color: var(--accent-green);" title="前往原始碼行號">
+            index.html#L1720 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>JavaScript (Compositor Animation)</span>
+            <span>index.html: 1718-1721</span>
+          </div>
+          <div class="code-content"><span class="hl-keyword">const</span> pos = getBezierPoint(tProgress, track.p0, track.p1, track.p2);
+
+<span class="hl-comment">// 1. 嚴格鎖定 GPU 合成層：強制只更新 transform，禁止觸發任何 Reflow 重排</span>
+dom.typhoonVortex.style.transform = <span class="hl-str">`translate3d(<span class="hl-attr">${pos.x}</span>px, <span class="hl-attr">${pos.y}</span>px, 0)`</span>;</div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>【致命約束】若修改 <code>style.top</code> 或 <code>style.left</code>，會引發全頁 DOM 重排（Reflow 耗時 10~25ms）。改用 <code>translate3d</code> 直接由 GPU Compositor 合成，耗時降至 0.6ms，徹底杜絕掉幀。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>操控屬性</strong>: <code>transform: translate3d(...)</code><br><strong>Reflow 耗時</strong>: 0.00 ms (Zero Reflow)<br><strong>影格預算達成</strong>: 0.6ms / 16.6ms 預算極限</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 項目 8 -->
+      <article class="xray-card" id="item8" data-cat="sensory">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>8. 物理二階阻尼回彈曲線 (Elastic Bezier Curve)</h3>
+            <span class="category-pill pill-sensory">微互動 (8%)</span>
+          </div>
+          <a href="index.html#L25" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L25, L181 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>CSS (Design Tokens & Transitions)</span>
+            <span>index.html: 25, 181-185</span>
+          </div>
+          <div class="code-content">:root {
+  <span class="hl-comment">/* 物理二階彈簧模型：Y1 達 1.56，產生 156% Overshoot 衝量回彈 */</span>
+  <span class="hl-attr">--ease-elastic</span>: <span class="hl-keyword">cubic-bezier</span>(<span class="hl-num">0.34</span>, <span class="hl-num">1.56</span>, <span class="hl-num">0.64</span>, <span class="hl-num">1</span>);
+}
+
+.btn-icon-action {
+  <span class="hl-attr">transition</span>: transform <span class="hl-num">0.25s</span> <span class="hl-keyword">var</span>(--ease-elastic), background-color <span class="hl-num">0.2s</span> ease;
+  <span class="hl-attr">will-change</span>: transform;
+}</div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>自然界中受力物體皆具慣性與阻尼。捨棄生硬的 linear，採用 Y1=1.56 的三次貝茲曲線，使按鈕在縮放時產生擬真彈力手感。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>控制點</strong>: $P_0(0,0), P_1(0.34, 1.56), P_2(0.64, 1), P_3(1,1)$<br><strong>衝量超額比</strong>: 156% Overshoot</p>
+          </div>
+        </div>
+
+        <div class="action-strip">
+          <span>線上即時體驗物理彈力按鈕：</span>
+          <button class="btn-test-action" id="testElasticBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            <span>點我感受 cubic-bezier 彈跳</span>
+          </button>
+        </div>
+      </article>
+
+      <!-- 項目 10 -->
+      <article class="xray-card" id="item10" data-cat="sensory">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>10. 向量描邊動態 (Stroke Dashoffset Animation)</h3>
+            <span class="category-pill pill-sensory">微互動 (7%)</span>
+          </div>
+          <a href="index.html#L213" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L213-L229 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>CSS (@keyframes)</span>
+            <span>index.html: 213-229</span>
+          </div>
+          <div class="code-content"><span class="hl-keyword">@keyframes</span> strokeDraw {
+  <span class="hl-num">0%</span>   { <span class="hl-attr">stroke-dashoffset</span>: <span class="hl-num">100</span>; <span class="hl-attr">fill</span>: transparent; }
+  <span class="hl-num">70%</span>  { <span class="hl-attr">stroke-dashoffset</span>: <span class="hl-num">0</span>;   <span class="hl-attr">fill</span>: transparent; }
+  <span class="hl-num">100%</span> { <span class="hl-attr">stroke-dashoffset</span>: <span class="hl-num">0</span>;   <span class="hl-attr">fill</span>: currentColor; }
+}</div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>設定虛線間距等於路徑總長度，透過將 dashoffset 從 100 平滑過渡至 0，形成筆觸動態勾勒，並於 70% 漸變填入色彩，兼具向量質感與手感。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>虛線設定</strong>: <code>stroke-dasharray: 100</code><br><strong>偏移過渡</strong>: 100 $\to$ 0 (0.6s)<br><strong>填色終態</strong>: <code>fill: currentColor</code></p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 項目 11 -->
+      <article class="xray-card" id="item11" data-cat="sensory">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>11. 原生 Web Audio API 即時頻率振盪合成 (Zero Payload Audio)</h3>
+            <span class="category-pill pill-sensory">微互動 (8%)</span>
+          </div>
+          <a href="index.html#L1481" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L1481-L1566 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>JavaScript (AudioContext & Oscillators)</span>
+            <span>index.html: 1498-1517</span>
+          </div>
+          <div class="code-content">playClick() {
+  <span class="hl-keyword">const</span> now = <span class="hl-keyword">this</span>.ctx.currentTime;
+  <span class="hl-keyword">const</span> osc = <span class="hl-keyword">this</span>.ctx.createOscillator();
+  <span class="hl-keyword">const</span> gain = <span class="hl-keyword">this</span>.ctx.createGain();
+
+  <span class="hl-comment">// 三角波 850Hz 指數驟降至 180Hz (時長 50ms)</span>
+  osc.type = <span class="hl-str">'triangle'</span>;
+  osc.frequency.setValueAtTime(<span class="hl-num">850</span>, now);
+  osc.frequency.exponentialRampToValueAtTime(<span class="hl-num">180</span>, now + <span class="hl-num">0.05</span>);
+
+  <span class="hl-comment">// 音量包絡衰減</span>
+  gain.gain.setValueAtTime(<span class="hl-num">0.22</span>, now);
+  gain.gain.exponentialRampToValueAtTime(<span class="hl-num">0.001</span>, now + <span class="hl-num">0.05</span>);
+
+  osc.connect(gain);
+  gain.connect(<span class="hl-keyword">this</span>.ctx.destination);
+  osc.start(now);
+  osc.stop(now + <span class="hl-num">0.055</span>);
+}</div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>零外部 MP3/WAV 檔案依賴，杜絕 HTTP 網路請求與解碼延遲，支援極限連續點擊不中斷，全站音效傳輸體積為 0 KB。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>音效時長</strong>: 50ms (Click), 60ms (Snap), 140ms (Chord)<br><strong>包絡曲線</strong>: <code>exponentialRampToValueAtTime</code><br><strong>頻率規格</strong>: 850Hz $\to$ 180Hz</p>
+          </div>
+        </div>
+
+        <div class="action-strip">
+          <span>線上即時試聽原生音效合成：</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-test-action" id="testClickAudio">Click (50ms)</button>
+            <button class="btn-test-action" id="testSnapAudio">Snap (60ms)</button>
+            <button class="btn-test-action" id="testChordAudio">Chord (140ms)</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 項目 13 -->
+      <article class="xray-card" id="item13" data-cat="integration">
+        <div class="card-top">
+          <div class="card-title-group">
+            <h3>13. 時間軸滑桿與氣象物理模型雙向聯動</h3>
+            <span class="category-pill pill-integration">功能整合 (5%)</span>
+          </div>
+          <a href="index.html#L1714" target="_blank" class="line-target-badge" title="前往原始碼行號">
+            index.html#L1714-L1792 ↗
+          </a>
+        </div>
+
+        <div class="code-view">
+          <div class="code-header">
+            <span>JavaScript (Meteorological Physics Simulation)</span>
+            <span>index.html: 1722-1755</span>
+          </div>
+          <div class="code-content"><span class="hl-comment">// 計算颱風中心與中央山脈主脊 (295, 280) 的歐幾里得距離</span>
+<span class="hl-keyword">const</span> distToMountain = Math.sqrt(dx * dx + dy * dy);
+<span class="hl-keyword">const</span> mFactor = Math.max(<span class="hl-num">0</span>, <span class="hl-num">1</span> - distToMountain / <span class="hl-num">160</span>);
+
+<span class="hl-comment">// 中心氣壓填塞、近地面減速、迎風面豪雨與背風面焚風增溫</span>
+pressure = Math.round(<span class="hl-num">940</span> + mFactor * <span class="hl-num">35</span>);
+windSpeed = Math.round(<span class="hl-num">50</span> - mFactor * <span class="hl-num">22</span>);
+foehnTemp = (<span class="hl-num">33.5</span> + mFactor * <span class="hl-num">6.2</span>).toFixed(<span class="hl-num">1</span>); <span class="hl-comment">// 飆破 39℃</span></div>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="analysis-card">
+            <h4>💡 為什麼製作在這裡？ (Design Rationale)</h4>
+            <p>將枯燥的時間軸滑動與實際大氣動力學物理模型緊密結合，使學習者在拖拉時間軸時能直觀觀察地形破壞中心結構與焚風升溫現象。</p>
+          </div>
+          <div class="analysis-card">
+            <h4>⚙ 關鍵參數與工程規格 (Parameter Specs)</h4>
+            <p><strong>山脈作用半徑</strong>: 160 px 影響衰減範圍<br><strong>焚風增溫極限</strong>: 39.7 ℃<br><strong>聯動儀表</strong>: 氣壓 hPa, 風速 m/s, 雨量 mm/h, 氣溫 ℃</p>
+          </div>
+        </div>
+      </article>
+
+    </main>
+  </div>
+
+  <!-- 原生微互動音效與標籤過濾邏輯 -->
+  <script>
+    // 1. 標籤篩選切換
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tocItems = document.querySelectorAll('.toc-item');
+    const xrayCards = document.querySelectorAll('.xray-card');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+
+        tocItems.forEach(item => {
+          if (filter === 'all' || item.dataset.cat === filter) {
+            item.style.display = 'flex';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+
+        xrayCards.forEach(card => {
+          if (filter === 'all' || card.dataset.cat === filter) {
+            card.style.display = 'flex';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // 2. 左側 TOC 導航點擊與高亮
+    tocItems.forEach(item => {
+      item.addEventListener('click', () => {
+        tocItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+
+    // 3. 原生 Web Audio API 測試台
+    class PointoutAudio {
+      constructor() { this.ctx = null; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playClick() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(850, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.05);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.055);
+      }
+      playSnap() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.06);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.065);
+      }
+      playChord() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
+        freqs.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const start = now + (idx * 0.025);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.12, start);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(start);
+          osc.stop(start + 0.15);
+        });
+      }
+    }
+
+    const pAudio = new PointoutAudio();
+
+    document.getElementById('testClickAudio')?.addEventListener('click', () => pAudio.playClick());
+    document.getElementById('testSnapAudio')?.addEventListener('click', () => pAudio.playSnap());
+    document.getElementById('testChordAudio')?.addEventListener('click', () => pAudio.playChord());
+
+    // 彈力按鈕測試
+    const testElasticBtn = document.getElementById('testElasticBtn');
+    testElasticBtn?.addEventListener('click', () => {
+      pAudio.playClick();
+      testElasticBtn.style.transform = 'scale(1.22)';
+      setTimeout(() => {
+        testElasticBtn.style.transform = '';
+      }, 200);
+    });
+  </script>
+</body>
+</html>
